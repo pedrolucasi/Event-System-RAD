@@ -6,9 +6,9 @@ Rapid Application Development (RAD) · TSI · IFPB. Este repositório reúne tr�
 - **Atividade 06** — a API REST em `/api/` (seção "API REST").
 - **Atividade 08** — a suíte de testes automatizados (seção "Testes automatizados").
 
-## Integrante
+## Aluno / Desenvolvedor
 
-- Pedro Lucas Silva Batista — matrícula 20232370030 (trabalho individual)
+- Pedro Lucas Silva Batista — matrícula 20232370030 
 
 ## Como executar
 
