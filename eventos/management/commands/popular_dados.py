@@ -5,6 +5,7 @@ from django.contrib.auth.models import Group, Permission
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
+from rest_framework.authtoken.models import Token
 
 from eventos.models import Atividade, Evento, Sala
 
@@ -58,6 +59,9 @@ class Command(BaseCommand):
 
         for username in ("org_ana", "org_bruno"):
             usuarios[username].groups.add(grupo)
+        for user in usuarios.values():
+            token, _ = Token.objects.get_or_create(user=user)
+            self.stdout.write(f"Token de {user.username}: {token.key}")
         return usuarios
 
     def criar_salas(self):
