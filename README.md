@@ -1,4 +1,4 @@
-# Inscrições em Eventos do Campus
+# Inscrições em Eventos do Campus 🏫
 
 Rapid Application Development (RAD) · TSI · IFPB. Este repositório reúne três entregas sobre o mesmo sistema:
 
@@ -6,9 +6,9 @@ Rapid Application Development (RAD) · TSI · IFPB. Este repositório reúne tr�
 - **Atividade 06** — a API REST em `/api/` (seção "API REST").
 - **Atividade 08** — a suíte de testes automatizados (seção "Testes automatizados").
 
-## Aluno / Desenvolvedor
+## Aluno / Desenvolvedor 👨‍💻
 
-- Pedro Lucas Silva Batista — matrícula 20232370030 
+- Pedro Lucas Silva Batista - matrícula 20232370030 
 
 ## Como executar
 
