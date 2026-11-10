@@ -5,3 +5,6 @@ __pycache__/
 .vscode/
 .idea/
 # db.sqlite3 vai versionado nesta entrega (dados de teste exigidos pela atividade)
+
+.coverage
+htmlcov/
