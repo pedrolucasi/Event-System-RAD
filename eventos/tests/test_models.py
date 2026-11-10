@@ -115,9 +115,10 @@ class ValidacaoDaAtividadeTests(CenarioTestCase):
             "idêntica": (quando(11, 9), quando(11, 11)),
         }
         for nome, (inicio, fim) in casos.items():
-            with self.subTest(nome), self.assertRaises(ValidationError) as ctx:
-                self.nova_atividade(sala=self.sala101, inicio=inicio, fim=fim).full_clean()
-            self.assertIn("já está ocupada", ctx.exception.message_dict["sala"][0])
+            with self.subTest(nome):
+                with self.assertRaises(ValidationError) as ctx:
+                    self.nova_atividade(sala=self.sala101, inicio=inicio, fim=fim).full_clean()
+                self.assertIn("já está ocupada", ctx.exception.message_dict["sala"][0])
 
     def test_rn3_sala_ocupada_por_atividade_de_outro_evento_e_recusada(self):
         # Ciência (Jornada) ocupa o Auditório; a nova atividade é da Semana.
@@ -152,6 +153,19 @@ class VagasRestantesTests(CenarioTestCase):
         anotada = Atividade.objects.com_vagas().get(pk=self.django.pk)
         self.assertEqual(anotada.vagas, 0)
         self.assertEqual(Atividade.objects.get(pk=self.django.pk).vagas_restantes(), 0)
+
+
+class InscricaoCondicionadaNoModelTests(CenarioTestCase):
+    """RN4 no model: é o que protege quem grava sem passar por services.py (o Admin, por exemplo)."""
+
+    def test_rn4_inscricao_do_mesmo_evento_passa_na_validacao(self):
+        inscricao_evento = self.inscrever_no_evento(self.carla, self.semana)
+        InscricaoAtividade(inscricao_evento=inscricao_evento, atividade=self.abertura).full_clean()
+
+    def test_rn4_inscricao_de_outro_evento_nao_serve_para_a_atividade(self):
+        inscricao_na_jornada = self.inscrever_no_evento(self.carla, self.jornada)
+        with self.assertRaisesMessage(ValidationError, "É preciso estar inscrito no evento desta atividade."):
+            InscricaoAtividade(inscricao_evento=inscricao_na_jornada, atividade=self.abertura).full_clean()
 
 
 class CascataNoModelTests(CenarioTestCase):
