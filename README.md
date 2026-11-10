@@ -28,7 +28,7 @@ python manage.py migrate
 python manage.py popular_dados
 ```
 
-Testes automatizados das regras de negócio: `python manage.py test eventos`.
+Testes automatizados: `python manage.py test` (detalhes na seção "Testes automatizados").
 
 ## Contas de teste
 
@@ -172,6 +172,81 @@ curl -X POST http://127.0.0.1:8000/api/inscricoes-atividade/ -H "Authorization: 
 ### Desafio opcional: a programação em uma requisição
 
 `GET /api/eventos/{id}/` devolve o evento, as atividades, o nome da sala e as vagas de cada uma em uma requisição, com serializers aninhados (`EventoProgramacaoSerializer` → `AtividadeNaProgramacaoSerializer`). O `prefetch_related` com `com_vagas().select_related("sala")` mantém o número de consultas fixo em 2, seja qual for a quantidade de atividades. Há um teste com `assertNumQueries` para isso.
+
+## Testes automatizados (Atividade 08)
+
+```powershell
+python manage.py test                       # a suíte inteira
+python manage.py test --shuffle             # ordem aleatória
+python manage.py test eventos.tests.test_models -v 2
+coverage run manage.py test; coverage report
+```
+
+**128 testes, cerca de 3 a 5 segundos.** Passam com `--shuffle` (três execuções seguidas, sementes diferentes), sem o `db.sqlite3` (cada teste cria os próprios dados em `setUpTestData`) e isoladamente por arquivo. Nenhum teste é pulado.
+
+Organização em `eventos/tests/`:
+
+| Arquivo | Conteúdo |
+|---|---|
+| `base.py` | `CenarioTestCase`: contas, grupo Organizadores, tokens, salas, eventos e atividades com as sobreposições do enunciado |
+| `test_models.py` | `full_clean()` com dados inválidos (fim antes do início, capacidade negativa, campo obrigatório vazio), todos os casos de sobreposição, RN3 e RN4 no model, vagas, cascata |
+| `test_forms.py` | `EventoForm` e `AtividadeForm` instanciados sem view: `is_valid()`, `errors`, `cleaned_data` |
+| `test_views.py` | Site: programação (status, conteúdo, contexto, template), inscrição e cancelamento (banco, redirect, mensagem), login com `next`, autorização com banco intacto, interface por papel, agenda, `assertNumQueries` |
+| `test_api.py` | API: porta aberta (campos exatos), porta fechada (401/403/201), as cinco regras com código e JSON, cancelamentos, agenda, paginação e busca, `assertNumQueries` |
+
+As cinco regras nas duas portas (cada uma com caminho aceito e recusado):
+
+| Regra | Site (`test_views.py`) | API (`test_api.py`) |
+|---|---|---|
+| RN1 capacidade | `test_rn1_ultima_vaga_e_ocupada`, `test_rn1_inscricao_alem_da_capacidade_e_recusada` | `test_rn1_inscricao_com_vaga_devolve_201_e_as_vagas_diminuem`, `test_rn1_inscricao_alem_da_capacidade_devolve_400_com_mensagem` |
+| RN2 conflito do participante | `test_rn2_atividades_em_horarios_diferentes_sao_aceitas`, `test_rn2_atividade_simultanea_no_mesmo_evento_e_recusada`, `test_rn2_atividade_simultanea_em_outro_evento_e_recusada` | `test_rn2_atividade_em_outro_horario_e_aceita`, `test_rn2_atividade_simultanea_no_mesmo_evento_devolve_400`, `test_rn2_atividade_simultanea_em_outro_evento_devolve_400` |
+| RN3 sala ocupada | `test_rn3_mesma_sala_em_outro_horario_e_aceita`, `test_rn3_sala_ocupada_no_horario_e_recusada`, `test_rn3_sala_ocupada_por_outro_evento_e_recusada` | `test_rn3_mesma_sala_em_outro_horario_e_aceita`, `test_rn3_sala_ocupada_no_horario_devolve_400_em_json`, `test_rn3_editar_atividade_para_sala_ocupada_devolve_400` |
+| RN4 inscrição condicionada | `test_rn4_inscrito_no_evento_consegue_se_inscrever_na_atividade`, `test_rn4_sem_inscricao_no_evento_e_recusado`, `test_rn4_inscricao_em_outro_evento_nao_vale` | `test_rn4_inscrito_no_evento_se_inscreve_na_atividade`, `test_rn4_sem_inscricao_no_evento_devolve_400` |
+| RN5 cascata | `test_rn5_cancelar_evento_remove_as_atividades_dele_e_so_dele`, `test_rn5_ninguem_cancela_evento_de_outra_pessoa` | `test_rn5_cancelar_evento_remove_as_atividades_dele`, `test_rn5_ninguem_cancela_inscricao_no_evento_de_outra_pessoa` |
+
+### Tabela de sabotagem
+
+Cada linha: uma alteração por vez, suíte inteira, resultado anotado, alteração desfeita com `git checkout`.
+
+| Sabotagem | Como foi feita | Teste que falhou | Verde na 1ª rodada? |
+|---|---|---|---|
+| 1. Capacidade da sala | Comentado o `if inscritos >= atividade.sala.capacidade` em `InscricaoAtividade.clean()` | `test_views…test_rn1_inscricao_alem_da_capacidade_e_recusada` e `test_api…test_rn1_inscricao_alem_da_capacidade_devolve_400_com_mensagem` | não |
+| 2. Horário sobreposto do participante | `if conflito:` trocado por `if False and conflito:` em `InscricaoAtividade.clean()` | 4 testes: `test_rn2_atividade_simultanea_no_mesmo_evento_*` e `test_rn2_atividade_simultanea_em_outro_evento_*`, no site e na API | não |
+| 3. Sala ocupada | `if ocupada:` trocado por `if False and ocupada:` em `Atividade.clean()` | 7 falhas e 1 erro: os 5 subcasos de `test_rn3_sala_ocupada_em_qualquer_caso_de_sobreposicao_e_recusada`, `test_rn3_sala_ocupada_por_atividade_de_outro_evento_e_recusada`, `test_sala_ocupada_gera_erro_no_campo_sala` (form), os dois `test_rn3_sala_ocupada_*` do site e os dois da API | não (ver nota 1) |
+| 4. Inscrição prévia no evento | Comentado o `if inscricao_evento is None: raise` em `services.inscrever_em_atividade` | `test_views…test_rn4_sem_inscricao_no_evento_e_recusado` e `test_api…test_rn4_sem_inscricao_no_evento_devolve_400`, **só pela mensagem** (ver nota 2) | não |
+| 5. Cancelamento em cascata | `on_delete=CASCADE` trocado por `DO_NOTHING` em `InscricaoAtividade.inscricao_evento` | 3 erros (`IntegrityError`): `test_rn5_cancelar_evento_remove_as_atividades_dele_e_so_dele` (site), `test_rn5_cancelar_evento_remove_as_atividades_dele` (API), `test_rn5_excluir_inscricao_no_evento_remove_as_inscricoes_nas_atividades` (model) | não |
+| 6. `render` no lugar do `redirect` | `inscrever_evento` passou a devolver `render(...)` | `test_inscricao_grava_redireciona_para_o_evento_e_avisa`, `test_segunda_inscricao_no_mesmo_evento_e_recusada` | não |
+| 7. Verificação de dono na edição | Site: `EventoUpdateView.has_permission` sobrescrito para checar só o papel. API: `EhOrganizadorDoEvento` devolvendo `True` | Site: `test_organizador_nao_edita_evento_de_outro`. API: `test_organizador_nao_altera_evento_de_outro`, `test_organizador_nao_exclui_evento_de_outro`, `test_organizador_nao_altera_atividade_de_evento_alheio` | não (ver nota 3) |
+| 8. Campo a mais na porta aberta | `organizador_email` acrescentado ao `EventoSerializer` | `test_evento_publico_traz_exatamente_os_campos_previstos`, `test_programacao_nao_expoe_nada_alem_do_previsto` | não |
+| 9. Sem `select_related`/`prefetch_related` | API: removido o `prefetch_related` do `EventoViewSet`. Site: removido o `select_related("sala")` do `EventoDetailView` | API: os dois `ConsultasDaProgramacaoApiTests` (6 e 12 consultas em vez de 2) e `test_programacao_traz_atividades_com_nome_da_sala_e_vagas`. Site: os dois `ConsultasDaProgramacaoSiteTests` (5 e 8 em vez de 3) | não |
+| 10. Checagem de "mesmo evento" no model (sabotagem extra) | Comentado o `if inscricao_evento.evento_id != atividade.evento_id` em `InscricaoAtividade.clean()` | **nenhum**. Escrevemos depois `test_rn4_inscricao_de_outro_evento_nao_serve_para_a_atividade` (e o caminho aceito `test_rn4_inscricao_do_mesmo_evento_passa_na_validacao`) em `test_models.py`; com a sabotagem ele falha, sem ela passa | **sim** |
+
+Notas:
+
+1. Na sabotagem 3, o teste com `subTest` deu **E** em vez de **F**: o `assertIn` estava fora do bloco do `subTest` e quebrava ao acessar a exceção que não veio. Corrigimos o teste; refeita a sabotagem, aparecem 5 falhas, uma por caso de sobreposição.
+2. A sabotagem 4 não deixou passar nenhuma inscrição. Sem a verificação, o serviço monta `InscricaoAtividade(inscricao_evento=None)` e o `full_clean()` recusa com "Este campo não pode ser nulo." — a estrutura do model (a FK obrigatória para `InscricaoEvento`) segura a regra sozinha. Só foi detectada porque os testes conferem a mensagem. Os testes que olham apenas o banco ou o código HTTP continuaram verdes.
+3. Na primeira tentativa da sabotagem 7 a suíte ficou verde. Investigando, o problema era do processo: a edição e a execução foram disparadas ao mesmo tempo e a suíte rodou antes da alteração ser gravada. Rodando de novo, com a sabotagem confirmada pelo `git diff`, o teste falhou. As demais sabotagens foram conferidas da mesma forma.
+
+As sabotagens 1, 2, 3 e 4 quebraram testes do site **e** da API ao mesmo tempo, com uma só alteração. É a prova de que essas regras têm uma única implementação.
+
+### Cobertura
+
+`coverage report` (configuração em `.coveragerc`, sem migrations e sem os próprios testes): **88%** no total. O número é puxado para baixo pelo comando `popular_dados` (0%, nenhum teste o executa). Sem ele, os arquivos de regra ficam entre 95% e 100%: `services.py` 100%, `api/serializers.py` 100%, `models.py` 95%, `views.py` 95%.
+
+O que a tabela mostra e o número não: a linha da checagem de "mesmo evento" em `InscricaoAtividade.clean()` **estava coberta** — toda inscrição em atividade passa por ela — e mesmo assim a sabotagem 10 passou verde. Cobertura diz que a linha foi executada; não diz que algum teste depende do resultado dela. O mesmo vale para a sabotagem 4: com 100% de cobertura em `services.py`, só as asserções de mensagem a pegaram. Cobertura alta é condição necessária, não suficiente; a sabotagem é que mede se os testes afirmam alguma coisa.
+
+### Regras em dois lugares
+
+Antes da Atividade 06, a RN4 estava escrita dentro da view `inscrever_atividade` do site (a busca da inscrição no evento e a mensagem de recusa). Para a API, isso viraria uma segunda cópia. Movemos a operação para `services.inscrever_em_atividade`, que o site e a API chamam. As outras regras já estavam no `clean()` dos models. Os testes desta atividade confirmaram: nenhuma sabotagem quebrou só uma das portas.
+
+### O que os testes encontraram
+
+- **Ordem perdida em consultas agrupadas.** A lista de eventos e a programação usavam `annotate(Count(...))`, e o Django ignora o `Meta.ordering` em consultas com `GROUP BY`. A lista do site vinha sem ordem garantida, e a programação só saía na ordem certa porque as atividades tinham sido cadastradas em ordem cronológica. Corrigido com `order_by` explícito; os testes `test_programacao_ordena_por_horario_e_nao_por_cadastro` (site e API) cadastram uma atividade fora de ordem para pegar isso.
+- **Suíte lenta.** A primeira versão levava cerca de 65 segundos, quase tudo em hash de senha no `setUpTestData`. As contas do cenário passaram a ser criadas sem senha (os testes entram com `force_login` ou token), e a suíte caiu para cerca de 3 segundos.
+
+### Desafio B — a sabotagem que nós inventamos
+
+É a linha 10 da tabela. Um colega que lê `services.inscrever_em_atividade` vê que o serviço sempre busca a inscrição do **mesmo** evento e pode concluir que a checagem de "mesmo evento" no `clean()` é redundante e apagá-la em um dia de pressa. Nenhum teste do site ou da API a pega, porque os dois passam pelo serviço. Mas o Admin grava `InscricaoAtividade` direto pelo `ModelForm`, deixando escolher a inscrição de qualquer evento — e aí essa linha é a única proteção da RN4. O teste `test_rn4_inscricao_de_outro_evento_nao_serve_para_a_atividade` fecha o buraco.
 
 ## Requisitos pendentes
 
