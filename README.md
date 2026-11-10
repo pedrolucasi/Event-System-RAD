@@ -6,10 +6,9 @@ Rapid Application Development (RAD) · TSI · IFPB. Este repositório reúne tr�
 - **Atividade 06** — a API REST em `/api/` (seção "API REST").
 - **Atividade 08** — a suíte de testes automatizados (seção "Testes automatizados").
 
-## Integrantes
+## Integrante
 
-- _Nome completo do integrante 1_
-- _Nome completo do integrante 2 (se for em dupla)_
+- Pedro Lucas Silva Batista — matrícula 20232370030 (trabalho individual)
 
 ## Como executar
 
@@ -130,7 +129,7 @@ Permissões: sem token, escrita devolve **401**. Com token de quem não tem o pa
 
 ### Onde as regras de negócio moram, e por quê
 
-Escolhemos **mover a regra para um lugar que os dois caminhos enxergam**, em vez de reescrevê-la no serializer:
+Escolhi **mover a regra para um lugar que os dois caminhos enxergam**, em vez de reescrevê-la no serializer:
 
 | Regra | Onde está | Quem chama |
 |---|---|---|
@@ -219,11 +218,11 @@ Cada linha: uma alteração por vez, suíte inteira, resultado anotado, alteraç
 | 7. Verificação de dono na edição | Site: `EventoUpdateView.has_permission` sobrescrito para checar só o papel. API: `EhOrganizadorDoEvento` devolvendo `True` | Site: `test_organizador_nao_edita_evento_de_outro`. API: `test_organizador_nao_altera_evento_de_outro`, `test_organizador_nao_exclui_evento_de_outro`, `test_organizador_nao_altera_atividade_de_evento_alheio` | não (ver nota 3) |
 | 8. Campo a mais na porta aberta | `organizador_email` acrescentado ao `EventoSerializer` | `test_evento_publico_traz_exatamente_os_campos_previstos`, `test_programacao_nao_expoe_nada_alem_do_previsto` | não |
 | 9. Sem `select_related`/`prefetch_related` | API: removido o `prefetch_related` do `EventoViewSet`. Site: removido o `select_related("sala")` do `EventoDetailView` | API: os dois `ConsultasDaProgramacaoApiTests` (6 e 12 consultas em vez de 2) e `test_programacao_traz_atividades_com_nome_da_sala_e_vagas`. Site: os dois `ConsultasDaProgramacaoSiteTests` (5 e 8 em vez de 3) | não |
-| 10. Checagem de "mesmo evento" no model (sabotagem extra) | Comentado o `if inscricao_evento.evento_id != atividade.evento_id` em `InscricaoAtividade.clean()` | **nenhum**. Escrevemos depois `test_rn4_inscricao_de_outro_evento_nao_serve_para_a_atividade` (e o caminho aceito `test_rn4_inscricao_do_mesmo_evento_passa_na_validacao`) em `test_models.py`; com a sabotagem ele falha, sem ela passa | **sim** |
+| 10. Checagem de "mesmo evento" no model (sabotagem extra) | Comentado o `if inscricao_evento.evento_id != atividade.evento_id` em `InscricaoAtividade.clean()` | **nenhum**. Escrevi depois `test_rn4_inscricao_de_outro_evento_nao_serve_para_a_atividade` (e o caminho aceito `test_rn4_inscricao_do_mesmo_evento_passa_na_validacao`) em `test_models.py`; com a sabotagem ele falha, sem ela passa | **sim** |
 
 Notas:
 
-1. Na sabotagem 3, o teste com `subTest` deu **E** em vez de **F**: o `assertIn` estava fora do bloco do `subTest` e quebrava ao acessar a exceção que não veio. Corrigimos o teste; refeita a sabotagem, aparecem 5 falhas, uma por caso de sobreposição.
+1. Na sabotagem 3, o teste com `subTest` deu **E** em vez de **F**: o `assertIn` estava fora do bloco do `subTest` e quebrava ao acessar a exceção que não veio. Corrigi o teste; refeita a sabotagem, aparecem 5 falhas, uma por caso de sobreposição.
 2. A sabotagem 4 não deixou passar nenhuma inscrição. Sem a verificação, o serviço monta `InscricaoAtividade(inscricao_evento=None)` e o `full_clean()` recusa com "Este campo não pode ser nulo." — a estrutura do model (a FK obrigatória para `InscricaoEvento`) segura a regra sozinha. Só foi detectada porque os testes conferem a mensagem. Os testes que olham apenas o banco ou o código HTTP continuaram verdes.
 3. Na primeira tentativa da sabotagem 7 a suíte ficou verde. Investigando, o problema era do processo: a edição e a execução foram disparadas ao mesmo tempo e a suíte rodou antes da alteração ser gravada. Rodando de novo, com a sabotagem confirmada pelo `git diff`, o teste falhou. As demais sabotagens foram conferidas da mesma forma.
 
@@ -237,14 +236,14 @@ O que a tabela mostra e o número não: a linha da checagem de "mesmo evento" em
 
 ### Regras em dois lugares
 
-Antes da Atividade 06, a RN4 estava escrita dentro da view `inscrever_atividade` do site (a busca da inscrição no evento e a mensagem de recusa). Para a API, isso viraria uma segunda cópia. Movemos a operação para `services.inscrever_em_atividade`, que o site e a API chamam. As outras regras já estavam no `clean()` dos models. Os testes desta atividade confirmaram: nenhuma sabotagem quebrou só uma das portas.
+Antes da Atividade 06, a RN4 estava escrita dentro da view `inscrever_atividade` do site (a busca da inscrição no evento e a mensagem de recusa). Para a API, isso viraria uma segunda cópia. Movi a operação para `services.inscrever_em_atividade`, que o site e a API chamam. As outras regras já estavam no `clean()` dos models. Os testes desta atividade confirmaram: nenhuma sabotagem quebrou só uma das portas.
 
 ### O que os testes encontraram
 
 - **Ordem perdida em consultas agrupadas.** A lista de eventos e a programação usavam `annotate(Count(...))`, e o Django ignora o `Meta.ordering` em consultas com `GROUP BY`. A lista do site vinha sem ordem garantida, e a programação só saía na ordem certa porque as atividades tinham sido cadastradas em ordem cronológica. Corrigido com `order_by` explícito; os testes `test_programacao_ordena_por_horario_e_nao_por_cadastro` (site e API) cadastram uma atividade fora de ordem para pegar isso.
 - **Suíte lenta.** A primeira versão levava cerca de 65 segundos, quase tudo em hash de senha no `setUpTestData`. As contas do cenário passaram a ser criadas sem senha (os testes entram com `force_login` ou token), e a suíte caiu para cerca de 3 segundos.
 
-### Desafio B — a sabotagem que nós inventamos
+### Desafio B — a sabotagem que eu inventei
 
 É a linha 10 da tabela. Um colega que lê `services.inscrever_em_atividade` vê que o serviço sempre busca a inscrição do **mesmo** evento e pode concluir que a checagem de "mesmo evento" no `clean()` é redundante e apagá-la em um dia de pressa. Nenhum teste do site ou da API a pega, porque os dois passam pelo serviço. Mas o Admin grava `InscricaoAtividade` direto pelo `ModelForm`, deixando escolher a inscrição de qualquer evento — e aí essa linha é a única proteção da RN4. O teste `test_rn4_inscricao_de_outro_evento_nao_serve_para_a_atividade` fecha o buraco.
 
