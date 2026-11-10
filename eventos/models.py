@@ -98,6 +98,12 @@ class Atividade(models.Model):
     def total_inscritos(self):
         return self.inscricoes.count()
 
+    def vagas_restantes(self):
+        # Usa a anotação de com_vagas() quando a consulta já a trouxe, senão conta no banco.
+        if hasattr(self, "vagas"):
+            return self.vagas
+        return self.sala.capacidade - self.total_inscritos()
+
     def clean(self):
         if not (self.inicio and self.fim):
             return

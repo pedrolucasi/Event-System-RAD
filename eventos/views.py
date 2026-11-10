@@ -3,7 +3,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
 from django.db.models import Count, Prefetch
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
@@ -11,6 +10,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
+from . import services
 from .forms import AtividadeForm, EventoForm
 from .mixins import DonoDoEventoMixin
 from .models import (
@@ -230,10 +230,8 @@ def _voltar(request, padrao):
 @require_POST
 def inscrever_evento(request, pk):
     evento = get_object_or_404(Evento, pk=pk)
-    inscricao = InscricaoEvento(evento=evento, participante=request.user)
     try:
-        inscricao.full_clean()
-        inscricao.save()
+        services.inscrever_em_evento(request.user, evento)
         messages.success(request, f"Inscrição no evento {evento} realizada.")
     except ValidationError as erro:
         _mostrar_erros(request, erro)
@@ -247,7 +245,7 @@ def cancelar_inscricao_evento(request, pk):
     if inscricao.participante_id != request.user.pk:
         raise PermissionDenied("Você só pode cancelar as suas próprias inscrições.")
     evento = inscricao.evento
-    inscricao.delete()  # CASCADE remove as inscrições nas atividades (RN5)
+    services.cancelar_inscricao_evento(inscricao)
     messages.success(request, f"Inscrição no evento {evento} cancelada, junto com as atividades dele.")
     return _voltar(request, evento)
 
@@ -255,25 +253,12 @@ def cancelar_inscricao_evento(request, pk):
 @login_required
 @require_POST
 def inscrever_atividade(request, pk):
-    with transaction.atomic():
-        # O bloqueio da linha serializa inscrições concorrentes na mesma atividade (RN1).
-        atividade = get_object_or_404(
-            Atividade.objects.select_for_update().select_related("evento", "sala"), pk=pk
-        )
-        inscricao_evento = InscricaoEvento.objects.filter(
-            evento=atividade.evento, participante=request.user
-        ).first()
-        if inscricao_evento is None:
-            messages.error(request, "Inscreva-se no evento antes de escolher atividades.")
-            return redirect(atividade.evento)
-
-        inscricao = InscricaoAtividade(inscricao_evento=inscricao_evento, atividade=atividade)
-        try:
-            inscricao.full_clean()
-            inscricao.save()
-            messages.success(request, f"Inscrição em \"{atividade.titulo}\" realizada.")
-        except ValidationError as erro:
-            _mostrar_erros(request, erro)
+    atividade = get_object_or_404(Atividade.objects.select_related("evento"), pk=pk)
+    try:
+        services.inscrever_em_atividade(request.user, atividade)
+        messages.success(request, f"Inscrição em \"{atividade.titulo}\" realizada.")
+    except ValidationError as erro:
+        _mostrar_erros(request, erro)
     return redirect(atividade.evento)
 
 
@@ -286,7 +271,7 @@ def cancelar_inscricao_atividade(request, pk):
     if inscricao.inscricao_evento.participante_id != request.user.pk:
         raise PermissionDenied("Você só pode cancelar as suas próprias inscrições.")
     atividade = inscricao.atividade
-    inscricao.delete()
+    services.cancelar_inscricao_atividade(inscricao)
     messages.success(request, f"Inscrição em \"{atividade.titulo}\" cancelada.")
     return _voltar(request, atividade.evento)
 
