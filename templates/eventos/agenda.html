@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Minha agenda{% endblock %}
+{% block content %}
+<h1>Minha agenda</h1>
+<table>
+    <thead>
+    <tr><th>Horário</th><th>Evento</th><th>Atividade</th><th>Sala</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for ia in inscricoes %}
+        <tr>
+            <td>{{ ia.atividade.inicio|date:"d/m/Y H:i" }} – {{ ia.atividade.fim|date:"H:i" }}</td>
+            <td><a href="{{ ia.atividade.evento.get_absolute_url }}">{{ ia.atividade.evento.nome }}</a></td>
+            <td>{{ ia.atividade.titulo }}</td>
+            <td>{{ ia.atividade.sala }}</td>
+            <td>
+                <form method="post" action="{% url 'eventos:cancelar_atividade' ia.pk %}" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ next }}">
+                    <button type="submit" class="perigo pequeno">Cancelar</button>
+                </form>
+            </td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="5">Você não está inscrito em nenhuma atividade.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>Eventos em que estou inscrito</h2>
+<ul>
+    {% for ie in inscricoes_evento %}
+        <li>
+            <a href="{{ ie.evento.get_absolute_url }}">{{ ie.evento.nome }}</a>
+            <form method="post" action="{% url 'eventos:cancelar_evento' ie.pk %}" class="inline"
+                  onsubmit="return confirm('Cancelar a inscrição no evento e em todas as atividades dele?');">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next }}">
+                <button type="submit" class="perigo pequeno">Cancelar evento inteiro</button>
+            </form>
+        </li>
+    {% empty %}
+        <li>Nenhum.</li>
+    {% endfor %}
+</ul>
+{% endblock %}

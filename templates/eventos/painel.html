@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Painel · {{ evento.nome }}{% endblock %}
+{% block content %}
+<h1>Painel de inscritos: {{ evento.nome }}</h1>
+<p class="meta">{{ inscricoes_evento|length }} participante{{ inscricoes_evento|length|pluralize }} inscrito{{ inscricoes_evento|length|pluralize }} no evento · <a href="{{ evento.get_absolute_url }}">ver programação</a></p>
+
+{% for a in atividades %}
+    <section class="cartao">
+        <h2>{{ a.titulo }}</h2>
+        <p class="meta">
+            {{ a.inicio|date:"d/m H:i" }} – {{ a.fim|date:"H:i" }} · {{ a.sala }}
+            · <strong>{{ a.num_inscritos }}</strong> inscrito{{ a.num_inscritos|pluralize }}
+            · <strong>{{ a.vagas }}</strong> vaga{{ a.vagas|pluralize }} restante{{ a.vagas|pluralize }} (capacidade {{ a.sala.capacidade }})
+        </p>
+        {% if a.inscricoes.all %}
+            <ol>
+                {% for ia in a.inscricoes.all %}
+                    <li>{{ ia.inscricao_evento.participante.get_full_name|default:ia.inscricao_evento.participante.username }} <small>({{ ia.data|date:"d/m/Y H:i" }})</small></li>
+                {% endfor %}
+            </ol>
+        {% else %}
+            <p>Nenhum inscrito.</p>
+        {% endif %}
+    </section>
+{% empty %}
+    <p>Este evento ainda não tem atividades.</p>
+{% endfor %}
+
+<h2>Inscritos no evento</h2>
+<ul>
+    {% for ie in inscricoes_evento %}
+        <li>{{ ie.participante.get_full_name|default:ie.participante.username }} <small>({{ ie.data|date:"d/m/Y H:i" }})</small></li>
+    {% empty %}
+        <li>Ninguém inscrito ainda.</li>
+    {% endfor %}
+</ul>
+{% endblock %}

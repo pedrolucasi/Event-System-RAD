@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Confirmar exclusão{% endblock %}
+{% block content %}
+<section class="cartao estreito">
+    <h1>Excluir "{{ object }}"?</h1>
+    <p>Esta ação não pode ser desfeita. Inscrições relacionadas também serão removidas.</p>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="perigo">Confirmar exclusão</button>
+        <a href="{{ evento.get_absolute_url|default:object.get_absolute_url }}">Voltar</a>
+    </form>
+</section>
+{% endblock %}

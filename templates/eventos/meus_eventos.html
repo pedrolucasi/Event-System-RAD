@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Meus eventos{% endblock %}
+{% block content %}
+<h1>Meus eventos</h1>
+<p><a class="botao" href="{% url 'eventos:criar' %}">Novo evento</a></p>
+<table>
+    <thead>
+    <tr><th>Evento</th><th>Período</th><th>Atividades</th><th>Inscritos</th><th>Inscrições</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for evento in eventos %}
+        <tr>
+            <td><a href="{{ evento.get_absolute_url }}">{{ evento.nome }}</a></td>
+            <td>{{ evento.data_inicio|date:"d/m/Y" }} a {{ evento.data_fim|date:"d/m/Y" }}</td>
+            <td>{{ evento.num_atividades }}</td>
+            <td>{{ evento.num_inscritos }}</td>
+            <td>{% if evento.inscricoes_abertas %}Abertas{% else %}Fechadas{% endif %}</td>
+            <td class="acoes-linha">
+                <a href="{% url 'eventos:painel' evento.pk %}">Painel</a>
+                <a href="{% url 'eventos:editar' evento.pk %}">Editar</a>
+                <a href="{% url 'eventos:excluir' evento.pk %}">Excluir</a>
+            </td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="6">Você ainda não cadastrou eventos.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

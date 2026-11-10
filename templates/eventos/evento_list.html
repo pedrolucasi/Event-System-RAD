@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Eventos{% endblock %}
+{% block content %}
+<h1>Eventos</h1>
+{% for evento in eventos %}
+    <article class="cartao">
+        <h2><a href="{{ evento.get_absolute_url }}">{{ evento.nome }}</a></h2>
+        <p class="meta">
+            {{ evento.data_inicio|date:"d/m/Y" }} a {{ evento.data_fim|date:"d/m/Y" }}
+            · {{ evento.num_atividades }} atividade{{ evento.num_atividades|pluralize }}
+            · organizado por {{ evento.organizador.username }}
+            · {% if evento.inscricoes_abertas %}<span class="tag ok">Inscrições abertas</span>{% else %}<span class="tag fechado">Inscrições fechadas</span>{% endif %}
+        </p>
+        {% if evento.descricao %}<p>{{ evento.descricao|truncatewords:30 }}</p>{% endif %}
+    </article>
+{% empty %}
+    <p>Nenhum evento cadastrado.</p>
+{% endfor %}
+{% endblock %}

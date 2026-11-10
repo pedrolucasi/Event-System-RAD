@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}{% if object.pk %}Editar atividade{% else %}Nova atividade{% endif %}{% endblock %}
+{% block content %}
+<section class="cartao estreito">
+    <h1>{% if object.pk %}Editar {{ object.titulo }}{% else %}Nova atividade{% endif %}</h1>
+    <p class="meta">Evento: {{ evento.nome }} ({{ evento.data_inicio|date:"d/m/Y" }} a {{ evento.data_fim|date:"d/m/Y" }})</p>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Salvar</button>
+        <a href="{{ evento.get_absolute_url }}">Voltar</a>
+    </form>
+</section>
+{% endblock %}
