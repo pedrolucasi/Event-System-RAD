@@ -1,0 +1,7 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+# db.sqlite3 vai versionado nesta entrega (dados de teste exigidos pela atividade)
