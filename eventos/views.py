@@ -40,9 +40,10 @@ class EventoListView(ListView):
     context_object_name = "eventos"
 
     def get_queryset(self):
+        # Consultas com GROUP BY ignoram o Meta.ordering; a ordem precisa ser explícita.
         return Evento.objects.select_related("organizador").annotate(
             num_atividades=Count("atividades")
-        )
+        ).order_by("data_inicio", "nome")
 
 
 class EventoDetailView(DetailView):
@@ -101,7 +102,7 @@ class MeusEventosView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         return Evento.objects.filter(organizador=self.request.user).annotate(
             num_atividades=Count("atividades", distinct=True),
             num_inscritos=Count("inscricoes", distinct=True),
-        )
+        ).order_by("data_inicio", "nome")
 
 
 class EventoCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):

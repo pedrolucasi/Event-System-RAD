@@ -67,9 +67,10 @@ class Evento(models.Model):
 
 class AtividadeQuerySet(models.QuerySet):
     def com_vagas(self):
+        # O GROUP BY do Count descarta o Meta.ordering; por isso o order_by explícito.
         return self.annotate(num_inscritos=Count("inscricoes", distinct=True)).annotate(
             vagas=F("sala__capacidade") - F("num_inscritos")
-        )
+        ).order_by("inicio", "fim")
 
 
 class Atividade(models.Model):
