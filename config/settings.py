@@ -13,6 +13,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
+    "rest_framework.authtoken",
+    "drf_spectacular",
     "eventos",
 ]
 
@@ -72,3 +75,32 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "eventos:lista"
 LOGOUT_REDIRECT_URL = "eventos:lista"
+
+REST_FRAMEWORK = {
+    # Token vem primeiro: é ele que define o 401 com WWW-Authenticate para clientes sem navegador.
+    # A sessão fica só para a API navegável.
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.TokenAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticatedOrReadOnly"],
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 10,
+    "DEFAULT_FILTER_BACKENDS": [
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
+    ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "eventos.api.excecoes.tratar_excecao",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "API de Eventos do Campus",
+    "DESCRIPTION": (
+        "Programação pública, cadastro de eventos e atividades pelo organizador e "
+        "inscrições do participante. Autentique com o cabeçalho `Authorization: Token <chave>`; "
+        "a chave sai de `POST /api/token/`."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+}
