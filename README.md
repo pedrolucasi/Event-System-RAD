@@ -1,10 +1,8 @@
 # Inscrições em Eventos do Campus 🏫
 
-Rapid Application Development (RAD) · TSI · IFPB. Este repositório reúne três entregas sobre o mesmo sistema:
+Rapid Application Development (RAD) · Curso Superior de Tecnologia em Sistemas para Internet · IFPB · 2026.2.
+- Professor: Rodrigo Pinheiro Marques de Araújo
 
-- **Ponto Extra II** — o site em HTML (seções "Contas de teste" a "Decisões de modelagem").
-- **Atividade 06** — a API REST em `/api/` (seção "API REST").
-- **Atividade 08** — a suíte de testes automatizados (seção "Testes automatizados").
 
 ## Aluno / Desenvolvedor 👨‍💻
 
